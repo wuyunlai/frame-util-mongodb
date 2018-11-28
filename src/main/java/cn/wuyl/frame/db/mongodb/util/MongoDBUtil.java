@@ -1,10 +1,14 @@
 package cn.wuyl.frame.db.mongodb.util;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 //import org.apache.commons.configuration.CompositeConfiguration;
 //import org.apache.commons.configuration.ConfigurationException;
 //import org.apache.commons.configuration.PropertiesConfiguration;
+import lombok.extern.slf4j.Slf4j;
+import net.sf.json.JSONObject;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
@@ -33,6 +37,7 @@ import com.mongodb.client.result.DeleteResult;
  * @version 0.0.0
  * @Copyright (c)1997-2015 NavInfo Co.Ltd. All Rights Reserved.
  */
+@Slf4j
 public enum MongoDBUtil {
 
     /**
@@ -223,6 +228,53 @@ public enum MongoDBUtil {
             mongoClient.close();
             mongoClient = null;
         }
+    }
+
+    private static List<Document> getDocumentFromMap(List<Map<String,Object>> filesDatas){
+        List<Document> documentList = new ArrayList<Document>();
+        for(Map<String,Object> fileDatas:filesDatas){
+            String fileAbsolutePath = (String)fileDatas.get("fileAbsolutePath");
+            String fileName = (String)fileDatas.get("fileName");
+            fileName = fileName.substring(0,fileName.indexOf("_"));
+            String fileParent = (String)fileDatas.get("fileParent");
+            List<Map<String, Object>> fileDatesList = (List<Map<String, Object>>)fileDatas.get("fileDatesListMap");
+            for(Map fileDates:fileDatesList){
+                Document document = new Document("city",fileName);
+//                    append("date", "2018/11/27").
+//                    append("minimumTemperature", 7).
+//                    append("maximumTemperature", "13").append("weather","晴").append("windDirection","西北风").append("windPower","小于3级");
+                documentList.add(document);
+            }
+            log.info("documentList:"+documentList.toString());
+        }
+        return documentList;
+    }
+
+    private static List<Document> getDocumentFromStringArr(List<String[]> filesDatas, String[] keyArr, Map addColMap){
+        List<Document> documentList = new ArrayList<Document>();
+        for(String[] rowDate:filesDatas){
+            if(rowDate.length != keyArr.length){
+//                log.debug(JSONObject.fromObject(addColMap).toString() + " csv文件["+StringUtils.join(rowDate,",")+"]列数"+rowDate.length+"与表["+StringUtils.join(keyArr,",")+"]列数"+keyArr.length +"不匹配");
+//                continue;
+            }
+            Map map = new HashMap();
+            int i = 0;
+            for(String value:rowDate){
+                int colInx = i+1;
+                if(value!=null && !value.equals("")){
+                    map.put((i<keyArr.length)?keyArr[i]:("Col"+(colInx)),value);
+                }else{
+//                    log.debug(JSONObject.fromObject(addColMap).toString() + " csv文件["+((i<keyArr.length)?keyArr[i]:("Col"+(colInx)))+" is null or '',don't set to Document");
+                }
+                i = colInx;
+            }
+            if(addColMap!=null){
+                map.putAll(addColMap);
+            }
+            log.info(JSONObject.fromObject(map).toString());
+            documentList.add(Document.parse(JSONObject.fromObject(map).toString()));
+        }
+        return documentList;
     }
 
     /**
